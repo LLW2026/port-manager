@@ -103,3 +103,91 @@ class RemotePort(BaseModel):
     pid: Optional[int] = None
     process_name: Optional[str] = None
     address: str
+
+
+# ==================== 项目管理 ====================
+
+class ProjectStatus(str, Enum):
+    ACTIVE = "active"
+    ARCHIVED = "archived"
+    DELETED = "deleted"
+
+
+class Project(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    host_id: int
+    status: str = "active"
+    created_at: str
+    updated_at: str
+
+
+class ProjectCreate(BaseModel):
+    name: str = Field(..., description="项目名称")
+    description: Optional[str] = Field(default=None, description="项目描述")
+    host_id: int = Field(default=1, description="主机ID")
+    auto_allocate: Optional[bool] = Field(default=False, description="是否自动分配端口")
+    port_count: Optional[int] = Field(default=1, description="自动分配端口数量")
+    is_web: Optional[bool] = Field(default=False, description="是否Web项目")
+
+
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+
+
+# ==================== 端口分配 ====================
+
+class AllocationStatus(str, Enum):
+    ALLOCATED = "allocated"
+    RELEASED = "released"
+    RESERVED = "reserved"
+
+
+class PortAllocation(BaseModel):
+    id: int
+    project_id: Optional[int] = None
+    host_id: int
+    port: int
+    protocol: str = "TCP"
+    allocation_type: str = "auto"  # auto / manual
+    status: str = "allocated"
+    description: Optional[str] = None
+    allocated_at: str
+    released_at: Optional[str] = None
+
+
+class AllocationCreate(BaseModel):
+    project_id: Optional[int] = Field(default=None, description="项目ID")
+    host_id: int = Field(default=1, description="主机ID")
+    port: Optional[int] = Field(default=None, description="指定端口（手动模式）")
+    count: int = Field(default=1, description="分配数量（自动模式）")
+    is_web: bool = Field(default=False, description="是否Web服务")
+    description: Optional[str] = Field(default=None, description="用途描述")
+
+
+class AllocationRelease(BaseModel):
+    port: int
+    host_id: int = 1
+
+
+# ==================== 端口池 ====================
+
+class PortPool(BaseModel):
+    id: int
+    name: str
+    host_id: Optional[int] = None  # None表示全局
+    start_port: int
+    end_port: int
+    description: Optional[str] = None
+    created_at: str
+
+
+class PortPoolCreate(BaseModel):
+    name: str = Field(..., description="池名称")
+    host_id: Optional[int] = Field(default=None, description="主机ID（null为全局）")
+    start_port: int = Field(..., description="起始端口")
+    end_port: int = Field(..., description="结束端口")
+    description: Optional[str] = Field(default=None, description="描述")

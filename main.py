@@ -7,7 +7,7 @@ from fastapi.requests import Request
 from fastapi.responses import HTMLResponse
 from pathlib import Path
 
-from routers import ports, hosts
+from routers import ports, hosts, allocations
 
 # 获取当前文件所在目录
 BASE_DIR = Path(__file__).resolve().parent
@@ -36,6 +36,7 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 # 注册路由
 app.include_router(ports.router)
 app.include_router(hosts.router)
+app.include_router(allocations.router)
 
 
 @app.get("/", response_class=HTMLResponse)
