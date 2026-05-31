@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>端口管理工具</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-top">
+                <div>
+                    <h1>端口管理工具</h1>
+                    <p class="subtitle">统一管理多台主机端口使用情况</p>
+                </div>
+                <button class="btn btn-outline" onclick="showHostManager()">🖥️ 主机管理</button>
+            </div>
+        </header>
+
+        <!-- 主机选择栏 -->
+        <div class="host-bar">
+            <label>当前主机：</label>
+            <select id="host-select" class="host-select" onchange="onHostChange()">
+                <option value="1">本机</option>
+            </select>
+            <button class="btn btn-sm btn-secondary" onclick="testHostConnection()">测试连接</button>
+            <button class="btn btn-sm btn-secondary" onclick="scanRemotePorts()">扫描端口</button>
+            <span id="host-status" class="host-status"></span>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="stats-bar">
+            <div class="stat-card">
+                <span class="stat-value" id="stat-total">0</span>
+                <span class="stat-label">总记录</span>
+            </div>
+            <div class="stat-card active">
+                <span class="stat-value" id="stat-active">0</span>
+                <span class="stat-label">使用中</span>
+            </div>
+            <div class="stat-card inactive">
+                <span class="stat-value" id="stat-inactive">0</span>
+                <span class="stat-label">空闲</span>
+            </div>
+            <div class="stat-card reserved">
+                <span class="stat-value" id="stat-reserved">0</span>
+                <span class="stat-label">保留</span>
+            </div>
+            <div class="stat-card web">
+                <span class="stat-value" id="stat-web">0</span>
+                <span class="stat-label">Web服务</span>
+            </div>
+        </div>
+
+        <!-- 操作栏 -->
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <input type="text" id="search-input" placeholder="搜索端口号、用途、项目..." class="search-input">
+                <select id="status-filter" class="filter-select">
+                    <option value="">所有状态</option>
+                    <option value="active">使用中</option>
+                    <option value="inactive">空闲</option>
+                    <option value="reserved">保留</option>
+                </select>
+                <select id="protocol-filter" class="filter-select">
+                    <option value="">所有协议</option>
+                    <option value="TCP">TCP</option>
+                    <option value="UDP">UDP</option>
+                </select>
+                <select id="sort-select" class="filter-select">
+                    <option value="project">按项目分组</option>
+                    <option value="port">按端口排序</option>
+                    <option value="status">按状态排序</option>
+                    <option value="is_web">Web服务优先</option>
+                </select>
+            </div>
+            <div class="toolbar-right">
+                <button class="btn btn-primary" onclick="showAddModal()">+ 添加端口</button>
+            </div>
+        </div>
+
+        <!-- 端口列表 -->
+        <div class="table-container">
+            <table class="port-table">
+                <thead>
+                    <tr>
+                        <th>端口</th>
+                        <th>协议</th>
+                        <th>用途</th>
+                        <th>项目</th>
+                        <th>状态</th>
+                        <th>Web</th>
+                        <th>备注</th>
+                        <th>更新时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="port-list">
+                    <tr>
+                        <td colspan="9" class="empty-state">暂无端口记录，点击"添加端口"开始</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 主机管理模态框 -->
+    <div class="modal" id="host-modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>主机管理</h2>
+                <button class="modal-close" onclick="hideHostModal()">&times;</button>
+            </div>
+            <div class="host-manager">
+                <div class="host-manager-header">
+                    <button class="btn btn-primary" onclick="showAddHostModal()">+ 添加主机</button>
+                </div>
+                <div class="table-container">
+                    <table class="port-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>名称</th>
+                                <th>地址</th>
+                                <th>端口</th>
+                                <th>用户名</th>
+                                <th>状态</th>
+                                <th>最后检查</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="host-list">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑主机模态框 -->
+    <div class="modal" id="host-edit-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="host-modal-title">添加主机</h2>
+                <button class="modal-close" onclick="hideHostEditModal()">&times;</button>
+            </div>
+            <form id="host-form" onsubmit="handleHostSubmit(event)">
+                <input type="hidden" id="host-id">
+                <div class="form-group">
+                    <label for="host-name">主机名称 *</label>
+                    <input type="text" id="host-name" required placeholder="如：Web服务器">
+                </div>
+                <div class="form-group">
+                    <label for="host-hostname">主机地址 *</label>
+                    <input type="text" id="host-hostname" required placeholder="IP或域名">
+                </div>
+                <div class="form-group">
+                    <label for="host-port">SSH端口</label>
+                    <input type="number" id="host-port" value="22" min="1" max="65535">
+                </div>
+                <div class="form-group">
+                    <label for="host-username">用户名</label>
+                    <input type="text" id="host-username" value="root">
+                </div>
+                <div class="form-group">
+                    <label for="host-password">密码</label>
+                    <input type="password" id="host-password" placeholder="SSH密码">
+                </div>
+                <div class="form-group">
+                    <label for="host-ssh-key">SSH密钥路径</label>
+                    <input type="text" id="host-ssh-key" placeholder="/root/.ssh/id_rsa">
+                    <span class="form-hint">优先使用密钥认证</span>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="hideHostEditModal()">取消</button>
+                    <button type="button" class="btn btn-secondary" onclick="testNewHost()">测试连接</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 添加/编辑端口模态框 -->
+    <div class="modal" id="port-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">添加端口</h2>
+                <button class="modal-close" onclick="hideModal()">&times;</button>
+            </div>
+            <form id="port-form" onsubmit="handleSubmit(event)">
+                <input type="hidden" id="port-id">
+                <div class="form-group">
+                    <label for="port-number">端口号 *</label>
+                    <input type="number" id="port-number" min="1" max="65535" required placeholder="1-65535">
+                </div>
+                <div class="form-group">
+                    <label for="port-protocol">协议</label>
+                    <select id="port-protocol">
+                        <option value="TCP">TCP</option>
+                        <option value="UDP">UDP</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="port-description">用途描述</label>
+                    <input type="text" id="port-description" placeholder="如：Web服务、数据库">
+                </div>
+                <div class="form-group">
+                    <label for="port-project">关联项目</label>
+                    <input type="text" id="port-project" placeholder="如：my-app">
+                </div>
+                <div class="form-group">
+                    <label for="port-status">状态</label>
+                    <select id="port-status">
+                        <option value="active">使用中</option>
+                        <option value="inactive">空闲</option>
+                        <option value="reserved">保留</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="port-is-web">
+                        <input type="checkbox" id="port-is-web"> Web服务
+                    </label>
+                    <span class="form-hint">勾选后可在列表中直接访问</span>
+                </div>
+                <div class="form-group">
+                    <label for="port-notes">备注</label>
+                    <textarea id="port-notes" rows="3" placeholder="其他说明..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="hideModal()">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 扫描结果模态框 -->
+    <div class="modal" id="scan-modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="scan-title">监听端口</h2>
+                <button class="modal-close" onclick="hideScanModal()">&times;</button>
+            </div>
+            <div class="scan-info">
+                <p>以下端口正在监听，未记录的端口可以一键添加到管理列表。</p>
+            </div>
+            <div class="table-container">
+                <table class="port-table">
+                    <thead>
+                        <tr>
+                            <th>端口</th>
+                            <th>协议</th>
+                            <th>进程</th>
+                            <th>PID</th>
+                            <th>地址</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scan-list">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
